@@ -17,10 +17,10 @@
   "author": "mganeko",
   "license": "MIT",
   "dependencies": {
-    "browserify": "^16.3.0",
-    "express": "^4.17.1",
-    "mediasoup": "^3.1.7",
-    "mediasoup-client": "^3.1.6",
-    "socket.io": "^2.2.0"
+    "browserify": "^17.0.0",
+    "express": "^4.17.3",
+    "mediasoup": "^3.9.8",
+    "mediasoup-client": "^3.6.50",
+    "socket.io": "^4.4.1"
   }
 }

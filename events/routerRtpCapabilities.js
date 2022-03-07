@@ -1,7 +1,7 @@
 module.exports = async (callback) => {
   if (mediasoupRouter) {
-    sendSocketResponse(mediasoupRouter.rtpCapabilities, callback);
+    callback(null, mediasoupRouter.rtpCapabilities);
   } else {
-    sendSocketReject({ text: "ERROR- mediasoupRouter NOT READY" }, callback);
+    callback({ text: "ERROR- mediasoupRouter NOT READY" }.toString(), null);
   }
 };

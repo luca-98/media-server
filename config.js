@@ -2,7 +2,6 @@ const fs = require("fs");
 let serverOptions = {
   hostName: "localhost",
   listenPort: 3000,
-  useHttps: true,
   httpsKeyFile: "./ssl/key.pem",
   httpsCertFile: "./ssl/cert.pem",
 };

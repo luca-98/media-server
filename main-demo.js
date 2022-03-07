@@ -79,23 +79,6 @@ if (serverOptions.useHttps) {
   });
 }
 
-// --- file check ---
-function isFileExist(path) {
-  try {
-    fs.accessSync(path, fs.constants.R_OK);
-    //console.log('File Exist path=' + path);
-    return true;
-  } catch (err) {
-    if (err.code === "ENOENT") {
-      //console.log('File NOT Exist path=' + path);
-      return false;
-    }
-  }
-
-  console.error("MUST NOT come here");
-  return false;
-}
-
 // --- socket.io server ---
 const io = require("socket.io")(webServer);
 console.log("socket.io server start. port=" + webServer.address().port);
@@ -103,7 +86,7 @@ console.log("socket.io server start. port=" + webServer.address().port);
 io.on("connection", function (socket) {
   console.log(
     "client connected. socket id=" +
-      getId(socket) +
+      socket.id +
       "  , total clients=" +
       getClientCount()
   );
@@ -112,7 +95,7 @@ io.on("connection", function (socket) {
     // close user connection
     console.log(
       "client disconnected. socket id=" +
-        getId(socket) +
+        socket.id +
         "  , total clients=" +
         getClientCount()
     );
@@ -138,9 +121,9 @@ io.on("connection", function (socket) {
   socket.on("createProducerTransport", async (data, callback) => {
     console.log("-- createProducerTransport ---");
     const { transport, params } = await createTransport();
-    addProducerTrasport(getId(socket), transport);
+    addProducerTrasport(socket.id, transport);
     transport.observer.on("close", () => {
-      const id = getId(socket);
+      const id = socket.id;
       const videoProducer = getProducer(id, "video");
       if (videoProducer) {
         videoProducer.close();
@@ -158,7 +141,7 @@ io.on("connection", function (socket) {
   });
 
   socket.on("connectProducerTransport", async (data, callback) => {
-    const transport = getProducerTrasnport(getId(socket));
+    const transport = getProducerTrasnport(socket.id);
     await transport.connect({ dtlsParameters: data.dtlsParameters });
     sendResponse({}, callback);
   });
@@ -166,7 +149,7 @@ io.on("connection", function (socket) {
   socket.on("produce", async (data, callback) => {
     const { kind, rtpParameters } = data;
     console.log("-- produce --- kind=" + kind);
-    const id = getId(socket);
+    const id = socket.id;
     const transport = getProducerTrasnport(id);
     if (!transport) {
       console.error("transport NOT EXIST for id=" + id);
@@ -190,14 +173,14 @@ io.on("connection", function (socket) {
 
   // --- consumer ----
   socket.on("createConsumerTransport", async (data, callback) => {
-    console.log("-- createConsumerTransport -- id=" + getId(socket));
+    console.log("-- createConsumerTransport -- id=" + socket.id);
     const { transport, params } = await createTransport();
-    addConsumerTrasport(getId(socket), transport);
+    addConsumerTrasport(socket.id, transport);
     transport.observer.on("close", () => {
-      const localId = getId(socket);
+      const localId = socket.id;
       removeConsumerSetDeep(localId);
       /*
-      let consumer = getConsumer(getId(socket));
+      let consumer = getConsumer(socket.id);
       if (consumer) {
         consumer.close();
         removeConsumer(id);
@@ -210,10 +193,10 @@ io.on("connection", function (socket) {
   });
 
   socket.on("connectConsumerTransport", async (data, callback) => {
-    console.log("-- connectConsumerTransport -- id=" + getId(socket));
-    let transport = getConsumerTrasnport(getId(socket));
+    console.log("-- connectConsumerTransport -- id=" + socket.id);
+    let transport = getConsumerTrasnport(socket.id);
     if (!transport) {
-      console.error("transport NOT EXIST for id=" + getId(socket));
+      console.error("transport NOT EXIST for id=" + socket.id);
       return;
     }
     await transport.connect({ dtlsParameters: data.dtlsParameters });
@@ -246,7 +229,7 @@ io.on("connection", function (socket) {
   });
 
   socket.on("consumeAdd", async (data, callback) => {
-    const localId = getId(socket);
+    const localId = socket.id;
     const kind = data.kind;
     console.log("-- consumeAdd -- localId=%s kind=%s", localId, kind);
 
@@ -308,7 +291,7 @@ io.on("connection", function (socket) {
   });
 
   socket.on("resumeAdd", async (data, callback) => {
-    const localId = getId(socket);
+    const localId = socket.id;
     const remoteId = data.remoteId;
     const kind = data.kind;
     console.log(
@@ -327,7 +310,7 @@ io.on("connection", function (socket) {
   });
 
   // ---- sendback welcome message with on connected ---
-  const newId = getId(socket);
+  const newId = socket.id;
   sendback(socket, { type: "welcome", id: newId });
 
   // --- send response to client ---
@@ -346,10 +329,6 @@ io.on("connection", function (socket) {
   }
 });
 
-function getId(socket) {
-  return socket.id;
-}
-
 //function sendNotification(socket, message) {
 //  socket.emit('notificatinon', message);
 //}
@@ -360,7 +339,7 @@ function getClientCount() {
 }
 
 function cleanUpPeer(socket) {
-  const id = getId(socket);
+  const id = socket.id;
   removeConsumerSetDeep(id);
   /*
   const consumer = getConsumer(id);

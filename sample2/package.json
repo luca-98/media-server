@@ -1,0 +1,21 @@
+{
+  "name": "mediasoup-sample-app",
+  "version": "1.2.2",
+  "description": "Mediasoup Sample App",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.17.3",
+    "mediasoup": "^3.9.8",
+    "mediasoup-client": "^3.6.50",
+    "socket.io": "^4.4.1",
+    "socket.io-client": "^4.4.1"
+  },
+  "devDependencies": {
+    "requirejs": "^2.3.6"
+  }
+}

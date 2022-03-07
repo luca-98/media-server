@@ -1,6 +1,6 @@
 const fs = require("fs");
 let serverOptions = {
-  hostName: "localhost",
+  hostName: "0.0.0.0",
   listenPort: 3000,
   httpsKeyFile: "./ssl/key.pem",
   httpsCertFile: "./ssl/cert.pem",

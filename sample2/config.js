@@ -1,5 +1,6 @@
 module.exports = {
-  listenIp: "0.0.0.0",
+  domain: "https://callthien.aeit.club/",
+  listenIp: "localhost",
   listenPort: 3000,
   sslCrt: "./ssl/cert.pem",
   sslKey: "./ssl/key.pem",

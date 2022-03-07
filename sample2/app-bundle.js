@@ -2704,10 +2704,9 @@ process.chdir = function (dir) {
 process.umask = function() { return 0; };
 
 },{}],6:[function(require,module,exports){
-const mediasoup = require('mediasoup-client');
-const socketClient = require('socket.io-client');
-const socketPromise = require('./lib/socket.io-promise').promise;
-const config = require('./config');
+const mediasoup = require("mediasoup-client");
+const socketClient = require("socket.io-client");
+const socketPromise = require("./lib/socket.io-promise").promise;
 
 const hostname = window.location.hostname;
 
@@ -2716,65 +2715,70 @@ let socket;
 let producer;
 
 const $ = document.querySelector.bind(document);
-const $fsPublish = $('#fs_publish');
-const $fsSubscribe = $('#fs_subscribe');
-const $btnConnect = $('#btn_connect');
-const $btnWebcam = $('#btn_webcam');
-const $btnScreen = $('#btn_screen');
-const $btnSubscribe = $('#btn_subscribe');
-const $chkSimulcast = $('#chk_simulcast');
-const $txtConnection = $('#connection_status');
-const $txtWebcam = $('#webcam_status');
-const $txtScreen = $('#screen_status');
-const $txtSubscription = $('#sub_status');
+const $fsPublish = $("#fs_publish");
+const $fsSubscribe = $("#fs_subscribe");
+const $btnConnect = $("#btn_connect");
+const $btnWebcam = $("#btn_webcam");
+const $btnScreen = $("#btn_screen");
+const $btnSubscribe = $("#btn_subscribe");
+const $chkSimulcast = $("#chk_simulcast");
+const $txtConnection = $("#connection_status");
+const $txtWebcam = $("#webcam_status");
+const $txtScreen = $("#screen_status");
+const $txtSubscription = $("#sub_status");
 let $txtPublish;
 
-$btnConnect.addEventListener('click', connect);
-$btnWebcam.addEventListener('click', publish);
-$btnScreen.addEventListener('click', publish);
-$btnSubscribe.addEventListener('click', subscribe);
+$btnConnect.addEventListener("click", connect);
+$btnWebcam.addEventListener("click", publish);
+$btnScreen.addEventListener("click", publish);
+$btnSubscribe.addEventListener("click", subscribe);
 
-if (typeof navigator.mediaDevices.getDisplayMedia === 'undefined') {
-  $txtScreen.innerHTML = 'Not supported';
+if (typeof navigator.mediaDevices.getDisplayMedia === "undefined") {
+  $txtScreen.innerHTML = "Not supported";
   $btnScreen.disabled = true;
 }
 
 async function connect() {
   $btnConnect.disabled = true;
-  $txtConnection.innerHTML = 'Connecting...';
+  $txtConnection.innerHTML = "Connecting...";
 
   const opts = {
-    path: '/server',
-    transports: ['websocket'],
+    path: "/server",
+    transports: ["websocket"],
   };
 
-  const serverUrl = `https://${hostname}:${config.listenPort}`;
+  const serverUrl = hostname;
   socket = socketClient(serverUrl, opts);
   socket.request = socketPromise(socket);
 
-  socket.on('connect', async () => {
-    $txtConnection.innerHTML = 'Connected';
+  socket.on("connect", async () => {
+    $txtConnection.innerHTML = "Connected";
     $fsPublish.disabled = false;
     $fsSubscribe.disabled = false;
 
-    const data = await socket.request('getRouterRtpCapabilities');
+    const data = await socket.request("getRouterRtpCapabilities");
     await loadDevice(data);
   });
 
-  socket.on('disconnect', () => {
-    $txtConnection.innerHTML = 'Disconnected';
+  socket.on("disconnect", () => {
+    $txtConnection.innerHTML = "Disconnected";
     $btnConnect.disabled = false;
     $fsPublish.disabled = true;
     $fsSubscribe.disabled = true;
   });
 
-  socket.on('connect_error', (error) => {
-    console.error('could not connect to %s%s (%s)', serverUrl, opts.path, error.message);
-    $txtConnection.innerHTML = 'Connection failed';
+  socket.on("connect_error", (error) => {
+    console.error(
+      "could not connect to %s%s (%s)",
+      serverUrl,
+      opts.path,
+      error.message
+    );
+    $txtConnection.innerHTML = "Connection failed";
     $btnConnect.disabled = false;
   });
 
-  socket.on('newProducer', () => {
+  socket.on("newProducer", () => {
     $fsSubscribe.disabled = false;
   });
 }
@@ -2783,18 +2787,18 @@ async function loadDevice(routerRtpCapabilities) {
   try {
     device = new mediasoup.Device();
   } catch (error) {
-    if (error.name === 'UnsupportedError') {
-      console.error('browser not supported');
+    if (error.name === "UnsupportedError") {
+      console.error("browser not supported");
     }
   }
   await device.load({ routerRtpCapabilities });
 }
 
 async function publish(e) {
-  const isWebcam = (e.target.id === 'btn_webcam');
+  const isWebcam = e.target.id === "btn_webcam";
   $txtPublish = isWebcam ? $txtWebcam : $txtScreen;
 
-  const data = await socket.request('createProducerTransport', {
+  const data = await socket.request("createProducerTransport", {
     forceTcp: false,
     rtpCapabilities: device.rtpCapabilities,
   });
@@ -2804,48 +2808,53 @@ async function publish(e) {
   }
 
   const transport = device.createSendTransport(data);
-  transport.on('connect', async ({ dtlsParameters }, callback, errback) => {
-    socket.request('connectProducerTransport', { dtlsParameters })
+  transport.on("connect", async ({ dtlsParameters }, callback, errback) => {
+    socket
+      .request("connectProducerTransport", { dtlsParameters })
       .then(callback)
       .catch(errback);
   });
 
-  transport.on('produce', async ({ kind, rtpParameters }, callback, errback) => {
-    try {
-      const { id } = await socket.request('produce', {
-        transportId: transport.id,
-        kind,
-        rtpParameters,
-      });
-      callback({ id });
-    } catch (err) {
-      errback(err);
+  transport.on(
+    "produce",
+    async ({ kind, rtpParameters }, callback, errback) => {
+      try {
+        const { id } = await socket.request("produce", {
+          transportId: transport.id,
+          kind,
+          rtpParameters,
+        });
+        callback({ id });
+      } catch (err) {
+        errback(err);
+      }
     }
-  });
+  );
 
-  transport.on('connectionstatechange', (state) => {
+  transport.on("connectionstatechange", (state) => {
     switch (state) {
-      case 'connecting':
-        $txtPublish.innerHTML = 'publishing...';
+      case "connecting":
+        $txtPublish.innerHTML = "publishing...";
         $fsPublish.disabled = true;
         $fsSubscribe.disabled = true;
-      break;
+        break;
 
-      case 'connected':
-        document.querySelector('#local_video').srcObject = stream;
-        $txtPublish.innerHTML = 'published';
+      case "connected":
+        document.querySelector("#local_video").srcObject = stream;
+        $txtPublish.innerHTML = "published";
         $fsPublish.disabled = true;
         $fsSubscribe.disabled = false;
-      break;
+        break;
 
-      case 'failed':
+      case "failed":
         transport.close();
-        $txtPublish.innerHTML = 'failed';
+        $txtPublish.innerHTML = "failed";
         $fsPublish.disabled = false;
         $fsSubscribe.disabled = true;
-      break;
+        break;
 
-      default: break;
+      default:
+        break;
     }
   });
 
@@ -2861,35 +2870,35 @@ async function publish(e) {
         { maxBitrate: 900000 },
       ];
       params.codecOptions = {
-        videoGoogleStartBitrate : 1000
+        videoGoogleStartBitrate: 1000,
       };
     }
     producer = await transport.produce(params);
   } catch (err) {
-    $txtPublish.innerHTML = 'failed';
+    $txtPublish.innerHTML = "failed";
   }
 }
 
 async function getUserMedia(transport, isWebcam) {
-  if (!device.canProduce('video')) {
-    console.error('cannot produce video');
+  if (!device.canProduce("video")) {
+    console.error("cannot produce video");
     return;
   }
 
   let stream;
   try {
-    stream = isWebcam ?
-      await navigator.mediaDevices.getUserMedia({ video: true }) :
-      await navigator.mediaDevices.getDisplayMedia({ video: true });
+    stream = isWebcam
+      ? await navigator.mediaDevices.getUserMedia({ video: true })
+      : await navigator.mediaDevices.getDisplayMedia({ video: true });
   } catch (err) {
-    console.error('getUserMedia() failed:', err.message);
+    console.error("getUserMedia() failed:", err.message);
     throw err;
   }
   return stream;
 }
 
 async function subscribe() {
-  const data = await socket.request('createConsumerTransport', {
+  const data = await socket.request("createConsumerTransport", {
     forceTcp: false,
   });
   if (data.error) {
@@ -2898,36 +2907,38 @@ async function subscribe() {
   }
 
   const transport = device.createRecvTransport(data);
-  transport.on('connect', ({ dtlsParameters }, callback, errback) => {
-    socket.request('connectConsumerTransport', {
-      transportId: transport.id,
-      dtlsParameters
-    })
+  transport.on("connect", ({ dtlsParameters }, callback, errback) => {
+    socket
+      .request("connectConsumerTransport", {
+        transportId: transport.id,
+        dtlsParameters,
+      })
       .then(callback)
       .catch(errback);
   });
 
-  transport.on('connectionstatechange', async (state) => {
+  transport.on("connectionstatechange", async (state) => {
     switch (state) {
-      case 'connecting':
-        $txtSubscription.innerHTML = 'subscribing...';
+      case "connecting":
+        $txtSubscription.innerHTML = "subscribing...";
         $fsSubscribe.disabled = true;
         break;
 
-      case 'connected':
-        document.querySelector('#remote_video').srcObject = await stream;
-        await socket.request('resume');
-        $txtSubscription.innerHTML = 'subscribed';
+      case "connected":
+        document.querySelector("#remote_video").srcObject = await stream;
+        await socket.request("resume");
+        $txtSubscription.innerHTML = "subscribed";
         $fsSubscribe.disabled = true;
         break;
 
-      case 'failed':
+      case "failed":
         transport.close();
-        $txtSubscription.innerHTML = 'failed';
+        $txtSubscription.innerHTML = "failed";
         $fsSubscribe.disabled = false;
         break;
 
-      default: break;
+      default:
+        break;
     }
   });
 
@@ -2936,13 +2947,8 @@ async function subscribe() {
 
 async function consume(transport) {
   const { rtpCapabilities } = device;
-  const data = await socket.request('consume', { rtpCapabilities });
-  const {
-    producerId,
-    id,
-    kind,
-    rtpParameters,
-  } = data;
+  const data = await socket.request("consume", { rtpCapabilities });
+  const { producerId, id, kind, rtpParameters } = data;
 
   let codecOptions = {};
   const consumer = await transport.consume({
@@ -2957,66 +2963,7 @@ async function consume(transport) {
   return stream;
 }
 
-},{"./config":7,"./lib/socket.io-promise":8,"mediasoup-client":60,"socket.io-client":72}],7:[function(require,module,exports){
-module.exports = {
-  listenIp: "0.0.0.0",
-  listenPort: 3000,
-  sslCrt: "./ssl/cert.pem",
-  sslKey: "./ssl/key.pem",
-  mediasoup: {
-    // Worker settings
-    worker: {
-      rtcMinPort: 10000,
-      rtcMaxPort: 10100,
-      logLevel: "warn",
-      logTags: [
-        "info",
-        "ice",
-        "dtls",
-        "rtp",
-        "srtp",
-        "rtcp",
-        // 'rtx',
-        // 'bwe',
-        // 'score',
-        // 'simulcast',
-        // 'svc'
-      ],
-    },
-    // Router settings
-    router: {
-      mediaCodecs: [
-        {
-          kind: "audio",
-          mimeType: "audio/opus",
-          clockRate: 48000,
-          channels: 2,
-        },
-        {
-          kind: "video",
-          mimeType: "video/VP8",
-          clockRate: 90000,
-          parameters: {
-            "x-google-start-bitrate": 1000,
-          },
-        },
-      ],
-    },
-    // WebRtcTransport settings
-    webRtcTransport: {
-      listenIps: [
-        {
-          ip: "127.0.0.1",
-          announcedIp: "192.168.4.43",
-        },
-      ],
-      maxIncomingBitrate: 1500000,
-      initialAvailableOutgoingBitrate: 1000000,
-    },
-  },
-};
-
-},{}],8:[function(require,module,exports){
+},{"./lib/socket.io-promise":7,"mediasoup-client":59,"socket.io-client":71}],7:[function(require,module,exports){
 // Adds support for Promise to socket.io-client
 exports.promise = function(socket) {
   return function request(type, data = {}) {
@@ -3026,7 +2973,7 @@ exports.promise = function(socket) {
   }
 };
 
-},{}],9:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
 /*
  * base64-arraybuffer 1.0.1 <https://github.com/niklasvh/base64-arraybuffer>
  * Copyright (c) 2022 Niklas von Hertzen <https://hertzen.com>
@@ -3089,7 +3036,7 @@ exports.promise = function(socket) {
 })));
 
 
-},{}],10:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 
 /**
  * Expose `Emitter`.
@@ -3267,7 +3214,7 @@ Emitter.prototype.hasListeners = function(event){
   return !! this.listeners(event).length;
 };
 
-},{}],11:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -3423,7 +3370,7 @@ class AwaitQueue {
 }
 exports.AwaitQueue = AwaitQueue;
 
-},{}],12:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 
 /**
  * Expose `Backoff`.
@@ -3510,9 +3457,9 @@ Backoff.prototype.setJitter = function(jitter){
 };
 
 
-},{}],13:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 !function(e,t){"object"==typeof exports&&"object"==typeof module?module.exports=t():"function"==typeof define&&define.amd?define([],t):"object"==typeof exports?exports.bowser=t():e.bowser=t()}(this,(function(){return function(e){var t={};function r(n){if(t[n])return t[n].exports;var i=t[n]={i:n,l:!1,exports:{}};return e[n].call(i.exports,i,i.exports,r),i.l=!0,i.exports}return r.m=e,r.c=t,r.d=function(e,t,n){r.o(e,t)||Object.defineProperty(e,t,{enumerable:!0,get:n})},r.r=function(e){"undefined"!=typeof Symbol&&Symbol.toStringTag&&Object.defineProperty(e,Symbol.toStringTag,{value:"Module"}),Object.defineProperty(e,"__esModule",{value:!0})},r.t=function(e,t){if(1&t&&(e=r(e)),8&t)return e;if(4&t&&"object"==typeof e&&e&&e.__esModule)return e;var n=Object.create(null);if(r.r(n),Object.defineProperty(n,"default",{enumerable:!0,value:e}),2&t&&"string"!=typeof e)for(var i in e)r.d(n,i,function(t){return e[t]}.bind(null,i));return n},r.n=function(e){var t=e&&e.__esModule?function(){return e.default}:function(){return e};return r.d(t,"a",t),t},r.o=function(e,t){return Object.prototype.hasOwnProperty.call(e,t)},r.p="",r(r.s=90)}({17:function(e,t,r){"use strict";t.__esModule=!0,t.default=void 0;var n=r(18),i=function(){function e(){}return e.getFirstMatch=function(e,t){var r=t.match(e);return r&&r.length>0&&r[1]||""},e.getSecondMatch=function(e,t){var r=t.match(e);return r&&r.length>1&&r[2]||""},e.matchAndReturnConst=function(e,t,r){if(e.test(t))return r},e.getWindowsVersionName=function(e){switch(e){case"NT":return"NT";case"XP":return"XP";case"NT 5.0":return"2000";case"NT 5.1":return"XP";case"NT 5.2":return"2003";case"NT 6.0":return"Vista";case"NT 6.1":return"7";case"NT 6.2":return"8";case"NT 6.3":return"8.1";case"NT 10.0":return"10";default:return}},e.getMacOSVersionName=function(e){var t=e.split(".").splice(0,2).map((function(e){return parseInt(e,10)||0}));if(t.push(0),10===t[0])switch(t[1]){case 5:return"Leopard";case 6:return"Snow Leopard";case 7:return"Lion";case 8:return"Mountain Lion";case 9:return"Mavericks";case 10:return"Yosemite";case 11:return"El Capitan";case 12:return"Sierra";case 13:return"High Sierra";case 14:return"Mojave";case 15:return"Catalina";default:return}},e.getAndroidVersionName=function(e){var t=e.split(".").splice(0,2).map((function(e){return parseInt(e,10)||0}));if(t.push(0),!(1===t[0]&&t[1]<5))return 1===t[0]&&t[1]<6?"Cupcake":1===t[0]&&t[1]>=6?"Donut":2===t[0]&&t[1]<2?"Eclair":2===t[0]&&2===t[1]?"Froyo":2===t[0]&&t[1]>2?"Gingerbread":3===t[0]?"Honeycomb":4===t[0]&&t[1]<1?"Ice Cream Sandwich":4===t[0]&&t[1]<4?"Jelly Bean":4===t[0]&&t[1]>=4?"KitKat":5===t[0]?"Lollipop":6===t[0]?"Marshmallow":7===t[0]?"Nougat":8===t[0]?"Oreo":9===t[0]?"Pie":void 0},e.getVersionPrecision=function(e){return e.split(".").length},e.compareVersions=function(t,r,n){void 0===n&&(n=!1);var i=e.getVersionPrecision(t),s=e.getVersionPrecision(r),a=Math.max(i,s),o=0,u=e.map([t,r],(function(t){var r=a-e.getVersionPrecision(t),n=t+new Array(r+1).join(".0");return e.map(n.split("."),(function(e){return new Array(20-e.length).join("0")+e})).reverse()}));for(n&&(o=a-Math.min(i,s)),a-=1;a>=o;){if(u[0][a]>u[1][a])return 1;if(u[0][a]===u[1][a]){if(a===o)return 0;a-=1}else if(u[0][a]<u[1][a])return-1}},e.map=function(e,t){var r,n=[];if(Array.prototype.map)return Array.prototype.map.call(e,t);for(r=0;r<e.length;r+=1)n.push(t(e[r]));return n},e.find=function(e,t){var r,n;if(Array.prototype.find)return Array.prototype.find.call(e,t);for(r=0,n=e.length;r<n;r+=1){var i=e[r];if(t(i,r))return i}},e.assign=function(e){for(var t,r,n=e,i=arguments.length,s=new Array(i>1?i-1:0),a=1;a<i;a++)s[a-1]=arguments[a];if(Object.assign)return Object.assign.apply(Object,[e].concat(s));var o=function(){var e=s[t];"object"==typeof e&&null!==e&&Object.keys(e).forEach((function(t){n[t]=e[t]}))};for(t=0,r=s.length;t<r;t+=1)o();return e},e.getBrowserAlias=function(e){return n.BROWSER_ALIASES_MAP[e]},e.getBrowserTypeByAlias=function(e){return n.BROWSER_MAP[e]||""},e}();t.default=i,e.exports=t.default},18:function(e,t,r){"use strict";t.__esModule=!0,t.ENGINE_MAP=t.OS_MAP=t.PLATFORMS_MAP=t.BROWSER_MAP=t.BROWSER_ALIASES_MAP=void 0;t.BROWSER_ALIASES_MAP={"Amazon Silk":"amazon_silk","Android Browser":"android",Bada:"bada",BlackBerry:"blackberry",Chrome:"chrome",Chromium:"chromium",Electron:"electron",Epiphany:"epiphany",Firefox:"firefox",Focus:"focus",Generic:"generic","Google Search":"google_search",Googlebot:"googlebot","Internet Explorer":"ie","K-Meleon":"k_meleon",Maxthon:"maxthon","Microsoft Edge":"edge","MZ Browser":"mz","NAVER Whale Browser":"naver",Opera:"opera","Opera Coast":"opera_coast",PhantomJS:"phantomjs",Puffin:"puffin",QupZilla:"qupzilla",QQ:"qq",QQLite:"qqlite",Safari:"safari",Sailfish:"sailfish","Samsung Internet for Android":"samsung_internet",SeaMonkey:"seamonkey",Sleipnir:"sleipnir",Swing:"swing",Tizen:"tizen","UC Browser":"uc",Vivaldi:"vivaldi","WebOS Browser":"webos",WeChat:"wechat","Yandex Browser":"yandex",Roku:"roku"};t.BROWSER_MAP={amazon_silk:"Amazon Silk",android:"Android Browser",bada:"Bada",blackberry:"BlackBerry",chrome:"Chrome",chromium:"Chromium",electron:"Electron",epiphany:"Epiphany",firefox:"Firefox",focus:"Focus",generic:"Generic",googlebot:"Googlebot",google_search:"Google Search",ie:"Internet Explorer",k_meleon:"K-Meleon",maxthon:"Maxthon",edge:"Microsoft Edge",mz:"MZ Browser",naver:"NAVER Whale Browser",opera:"Opera",opera_coast:"Opera Coast",phantomjs:"PhantomJS",puffin:"Puffin",qupzilla:"QupZilla",qq:"QQ Browser",qqlite:"QQ Browser Lite",safari:"Safari",sailfish:"Sailfish",samsung_internet:"Samsung Internet for Android",seamonkey:"SeaMonkey",sleipnir:"Sleipnir",swing:"Swing",tizen:"Tizen",uc:"UC Browser",vivaldi:"Vivaldi",webos:"WebOS Browser",wechat:"WeChat",yandex:"Yandex Browser"};t.PLATFORMS_MAP={tablet:"tablet",mobile:"mobile",desktop:"desktop",tv:"tv"};t.OS_MAP={WindowsPhone:"Windows Phone",Windows:"Windows",MacOS:"macOS",iOS:"iOS",Android:"Android",WebOS:"WebOS",BlackBerry:"BlackBerry",Bada:"Bada",Tizen:"Tizen",Linux:"Linux",ChromeOS:"Chrome OS",PlayStation4:"PlayStation 4",Roku:"Roku"};t.ENGINE_MAP={EdgeHTML:"EdgeHTML",Blink:"Blink",Trident:"Trident",Presto:"Presto",Gecko:"Gecko",WebKit:"WebKit"}},90:function(e,t,r){"use strict";t.__esModule=!0,t.default=void 0;var n,i=(n=r(91))&&n.__esModule?n:{default:n},s=r(18);function a(e,t){for(var r=0;r<t.length;r++){var n=t[r];n.enumerable=n.enumerable||!1,n.configurable=!0,"value"in n&&(n.writable=!0),Object.defineProperty(e,n.key,n)}}var o=function(){function e(){}var t,r,n;return e.getParser=function(e,t){if(void 0===t&&(t=!1),"string"!=typeof e)throw new Error("UserAgent should be a string");return new i.default(e,t)},e.parse=function(e){return new i.default(e).getResult()},t=e,n=[{key:"BROWSER_MAP",get:function(){return s.BROWSER_MAP}},{key:"ENGINE_MAP",get:function(){return s.ENGINE_MAP}},{key:"OS_MAP",get:function(){return s.OS_MAP}},{key:"PLATFORMS_MAP",get:function(){return s.PLATFORMS_MAP}}],(r=null)&&a(t.prototype,r),n&&a(t,n),e}();t.default=o,e.exports=t.default},91:function(e,t,r){"use strict";t.__esModule=!0,t.default=void 0;var n=u(r(92)),i=u(r(93)),s=u(r(94)),a=u(r(95)),o=u(r(17));function u(e){return e&&e.__esModule?e:{default:e}}var d=function(){function e(e,t){if(void 0===t&&(t=!1),null==e||""===e)throw new Error("UserAgent parameter can't be empty");this._ua=e,this.parsedResult={},!0!==t&&this.parse()}var t=e.prototype;return t.getUA=function(){return this._ua},t.test=function(e){return e.test(this._ua)},t.parseBrowser=function(){var e=this;this.parsedResult.browser={};var t=o.default.find(n.default,(function(t){if("function"==typeof t.test)return t.test(e);if(t.test instanceof Array)return t.test.some((function(t){return e.test(t)}));throw new Error("Browser's test function is not valid")}));return t&&(this.parsedResult.browser=t.describe(this.getUA())),this.parsedResult.browser},t.getBrowser=function(){return this.parsedResult.browser?this.parsedResult.browser:this.parseBrowser()},t.getBrowserName=function(e){return e?String(this.getBrowser().name).toLowerCase()||"":this.getBrowser().name||""},t.getBrowserVersion=function(){return this.getBrowser().version},t.getOS=function(){return this.parsedResult.os?this.parsedResult.os:this.parseOS()},t.parseOS=function(){var e=this;this.parsedResult.os={};var t=o.default.find(i.default,(function(t){if("function"==typeof t.test)return t.test(e);if(t.test instanceof Array)return t.test.some((function(t){return e.test(t)}));throw new Error("Browser's test function is not valid")}));return t&&(this.parsedResult.os=t.describe(this.getUA())),this.parsedResult.os},t.getOSName=function(e){var t=this.getOS().name;return e?String(t).toLowerCase()||"":t||""},t.getOSVersion=function(){return this.getOS().version},t.getPlatform=function(){return this.parsedResult.platform?this.parsedResult.platform:this.parsePlatform()},t.getPlatformType=function(e){void 0===e&&(e=!1);var t=this.getPlatform().type;return e?String(t).toLowerCase()||"":t||""},t.parsePlatform=function(){var e=this;this.parsedResult.platform={};var t=o.default.find(s.default,(function(t){if("function"==typeof t.test)return t.test(e);if(t.test instanceof Array)return t.test.some((function(t){return e.test(t)}));throw new Error("Browser's test function is not valid")}));return t&&(this.parsedResult.platform=t.describe(this.getUA())),this.parsedResult.platform},t.getEngine=function(){return this.parsedResult.engine?this.parsedResult.engine:this.parseEngine()},t.getEngineName=function(e){return e?String(this.getEngine().name).toLowerCase()||"":this.getEngine().name||""},t.parseEngine=function(){var e=this;this.parsedResult.engine={};var t=o.default.find(a.default,(function(t){if("function"==typeof t.test)return t.test(e);if(t.test instanceof Array)return t.test.some((function(t){return e.test(t)}));throw new Error("Browser's test function is not valid")}));return t&&(this.parsedResult.engine=t.describe(this.getUA())),this.parsedResult.engine},t.parse=function(){return this.parseBrowser(),this.parseOS(),this.parsePlatform(),this.parseEngine(),this},t.getResult=function(){return o.default.assign({},this.parsedResult)},t.satisfies=function(e){var t=this,r={},n=0,i={},s=0;if(Object.keys(e).forEach((function(t){var a=e[t];"string"==typeof a?(i[t]=a,s+=1):"object"==typeof a&&(r[t]=a,n+=1)})),n>0){var a=Object.keys(r),u=o.default.find(a,(function(e){return t.isOS(e)}));if(u){var d=this.satisfies(r[u]);if(void 0!==d)return d}var c=o.default.find(a,(function(e){return t.isPlatform(e)}));if(c){var f=this.satisfies(r[c]);if(void 0!==f)return f}}if(s>0){var l=Object.keys(i),h=o.default.find(l,(function(e){return t.isBrowser(e,!0)}));if(void 0!==h)return this.compareVersion(i[h])}},t.isBrowser=function(e,t){void 0===t&&(t=!1);var r=this.getBrowserName().toLowerCase(),n=e.toLowerCase(),i=o.default.getBrowserTypeByAlias(n);return t&&i&&(n=i.toLowerCase()),n===r},t.compareVersion=function(e){var t=[0],r=e,n=!1,i=this.getBrowserVersion();if("string"==typeof i)return">"===e[0]||"<"===e[0]?(r=e.substr(1),"="===e[1]?(n=!0,r=e.substr(2)):t=[],">"===e[0]?t.push(1):t.push(-1)):"="===e[0]?r=e.substr(1):"~"===e[0]&&(n=!0,r=e.substr(1)),t.indexOf(o.default.compareVersions(i,r,n))>-1},t.isOS=function(e){return this.getOSName(!0)===String(e).toLowerCase()},t.isPlatform=function(e){return this.getPlatformType(!0)===String(e).toLowerCase()},t.isEngine=function(e){return this.getEngineName(!0)===String(e).toLowerCase()},t.is=function(e,t){return void 0===t&&(t=!1),this.isBrowser(e,t)||this.isOS(e)||this.isPlatform(e)},t.some=function(e){var t=this;return void 0===e&&(e=[]),e.some((function(e){return t.is(e)}))},e}();t.default=d,e.exports=t.default},92:function(e,t,r){"use strict";t.__esModule=!0,t.default=void 0;var n,i=(n=r(17))&&n.__esModule?n:{default:n};var s=/version\/(\d+(\.?_?\d+)+)/i,a=[{test:[/googlebot/i],describe:function(e){var t={name:"Googlebot"},r=i.default.getFirstMatch(/googlebot\/(\d+(\.\d+))/i,e)||i.default.getFirstMatch(s,e);return r&&(t.version=r),t}},{test:[/opera/i],describe:function(e){var t={name:"Opera"},r=i.default.getFirstMatch(s,e)||i.default.getFirstMatch(/(?:opera)[\s/](\d+(\.?_?\d+)+)/i,e);return r&&(t.version=r),t}},{test:[/opr\/|opios/i],describe:function(e){var t={name:"Opera"},r=i.default.getFirstMatch(/(?:opr|opios)[\s/](\S+)/i,e)||i.default.getFirstMatch(s,e);return r&&(t.version=r),t}},{test:[/SamsungBrowser/i],describe:function(e){var t={name:"Samsung Internet for Android"},r=i.default.getFirstMatch(s,e)||i.default.getFirstMatch(/(?:SamsungBrowser)[\s/](\d+(\.?_?\d+)+)/i,e);return r&&(t.version=r),t}},{test:[/Whale/i],describe:function(e){var t={name:"NAVER Whale Browser"},r=i.default.getFirstMatch(s,e)||i.default.getFirstMatch(/(?:whale)[\s/](\d+(?:\.\d+)+)/i,e);return r&&(t.version=r),t}},{test:[/MZBrowser/i],describe:function(e){var t={name:"MZ Browser"},r=i.default.getFirstMatch(/(?:MZBrowser)[\s/](\d+(?:\.\d+)+)/i,e)||i.default.getFirstMatch(s,e);return r&&(t.version=r),t}},{test:[/focus/i],describe:function(e){var t={name:"Focus"},r=i.default.getFirstMatch(/(?:focus)[\s/](\d+(?:\.\d+)+)/i,e)||i.default.getFirstMatch(s,e);return r&&(t.version=r),t}},{test:[/swing/i],describe:function(e){var t={name:"Swing"},r=i.default.getFirstMatch(/(?:swing)[\s/](\d+(?:\.\d+)+)/i,e)||i.default.getFirstMatch(s,e);return r&&(t.version=r),t}},{test:[/coast/i],describe:function(e){var t={name:"Opera Coast"},r=i.default.getFirstMatch(s,e)||i.default.getFirstMatch(/(?:coast)[\s/](\d+(\.?_?\d+)+)/i,e);return r&&(t.version=r),t}},{test:[/opt\/\d+(?:.?_?\d+)+/i],describe:function(e){var t={name:"Opera Touch"},r=i.default.getFirstMatch(/(?:opt)[\s/](\d+(\.?_?\d+)+)/i,e)||i.default.getFirstMatch(s,e);return r&&(t.version=r),t}},{test:[/yabrowser/i],describe:function(e){var t={name:"Yandex Browser"},r=i.default.getFirstMatch(/(?:yabrowser)[\s/](\d+(\.?_?\d+)+)/i,e)||i.default.getFirstMatch(s,e);return r&&(t.version=r),t}},{test:[/ucbrowser/i],describe:function(e){var t={name:"UC Browser"},r=i.default.getFirstMatch(s,e)||i.default.getFirstMatch(/(?:ucbrowser)[\s/](\d+(\.?_?\d+)+)/i,e);return r&&(t.version=r),t}},{test:[/Maxthon|mxios/i],describe:function(e){var t={name:"Maxthon"},r=i.default.getFirstMatch(s,e)||i.default.getFirstMatch(/(?:Maxthon|mxios)[\s/](\d+(\.?_?\d+)+)/i,e);return r&&(t.version=r),t}},{test:[/epiphany/i],describe:function(e){var t={name:"Epiphany"},r=i.default.getFirstMatch(s,e)||i.default.getFirstMatch(/(?:epiphany)[\s/](\d+(\.?_?\d+)+)/i,e);return r&&(t.version=r),t}},{test:[/puffin/i],describe:function(e){var t={name:"Puffin"},r=i.default.getFirstMatch(s,e)||i.default.getFirstMatch(/(?:puffin)[\s/](\d+(\.?_?\d+)+)/i,e);return r&&(t.version=r),t}},{test:[/sleipnir/i],describe:function(e){var t={name:"Sleipnir"},r=i.default.getFirstMatch(s,e)||i.default.getFirstMatch(/(?:sleipnir)[\s/](\d+(\.?_?\d+)+)/i,e);return r&&(t.version=r),t}},{test:[/k-meleon/i],describe:function(e){var t={name:"K-Meleon"},r=i.default.getFirstMatch(s,e)||i.default.getFirstMatch(/(?:k-meleon)[\s/](\d+(\.?_?\d+)+)/i,e);return r&&(t.version=r),t}},{test:[/micromessenger/i],describe:function(e){var t={name:"WeChat"},r=i.default.getFirstMatch(/(?:micromessenger)[\s/](\d+(\.?_?\d+)+)/i,e)||i.default.getFirstMatch(s,e);return r&&(t.version=r),t}},{test:[/qqbrowser/i],describe:function(e){var t={name:/qqbrowserlite/i.test(e)?"QQ Browser Lite":"QQ Browser"},r=i.default.getFirstMatch(/(?:qqbrowserlite|qqbrowser)[/](\d+(\.?_?\d+)+)/i,e)||i.default.getFirstMatch(s,e);return r&&(t.version=r),t}},{test:[/msie|trident/i],describe:function(e){var t={name:"Internet Explorer"},r=i.default.getFirstMatch(/(?:msie |rv:)(\d+(\.?_?\d+)+)/i,e);return r&&(t.version=r),t}},{test:[/\sedg\//i],describe:function(e){var t={name:"Microsoft Edge"},r=i.default.getFirstMatch(/\sedg\/(\d+(\.?_?\d+)+)/i,e);return r&&(t.version=r),t}},{test:[/edg([ea]|ios)/i],describe:function(e){var t={name:"Microsoft Edge"},r=i.default.getSecondMatch(/edg([ea]|ios)\/(\d+(\.?_?\d+)+)/i,e);return r&&(t.version=r),t}},{test:[/vivaldi/i],describe:function(e){var t={name:"Vivaldi"},r=i.default.getFirstMatch(/vivaldi\/(\d+(\.?_?\d+)+)/i,e);return r&&(t.version=r),t}},{test:[/seamonkey/i],describe:function(e){var t={name:"SeaMonkey"},r=i.default.getFirstMatch(/seamonkey\/(\d+(\.?_?\d+)+)/i,e);return r&&(t.version=r),t}},{test:[/sailfish/i],describe:function(e){var t={name:"Sailfish"},r=i.default.getFirstMatch(/sailfish\s?browser\/(\d+(\.\d+)?)/i,e);return r&&(t.version=r),t}},{test:[/silk/i],describe:function(e){var t={name:"Amazon Silk"},r=i.default.getFirstMatch(/silk\/(\d+(\.?_?\d+)+)/i,e);return r&&(t.version=r),t}},{test:[/phantom/i],describe:function(e){var t={name:"PhantomJS"},r=i.default.getFirstMatch(/phantomjs\/(\d+(\.?_?\d+)+)/i,e);return r&&(t.version=r),t}},{test:[/slimerjs/i],describe:function(e){var t={name:"SlimerJS"},r=i.default.getFirstMatch(/slimerjs\/(\d+(\.?_?\d+)+)/i,e);return r&&(t.version=r),t}},{test:[/blackberry|\bbb\d+/i,/rim\stablet/i],describe:function(e){var t={name:"BlackBerry"},r=i.default.getFirstMatch(s,e)||i.default.getFirstMatch(/blackberry[\d]+\/(\d+(\.?_?\d+)+)/i,e);return r&&(t.version=r),t}},{test:[/(web|hpw)[o0]s/i],describe:function(e){var t={name:"WebOS Browser"},r=i.default.getFirstMatch(s,e)||i.default.getFirstMatch(/w(?:eb)?[o0]sbrowser\/(\d+(\.?_?\d+)+)/i,e);return r&&(t.version=r),t}},{test:[/bada/i],describe:function(e){var t={name:"Bada"},r=i.default.getFirstMatch(/dolfin\/(\d+(\.?_?\d+)+)/i,e);return r&&(t.version=r),t}},{test:[/tizen/i],describe:function(e){var t={name:"Tizen"},r=i.default.getFirstMatch(/(?:tizen\s?)?browser\/(\d+(\.?_?\d+)+)/i,e)||i.default.getFirstMatch(s,e);return r&&(t.version=r),t}},{test:[/qupzilla/i],describe:function(e){var t={name:"QupZilla"},r=i.default.getFirstMatch(/(?:qupzilla)[\s/](\d+(\.?_?\d+)+)/i,e)||i.default.getFirstMatch(s,e);return r&&(t.version=r),t}},{test:[/firefox|iceweasel|fxios/i],describe:function(e){var t={name:"Firefox"},r=i.default.getFirstMatch(/(?:firefox|iceweasel|fxios)[\s/](\d+(\.?_?\d+)+)/i,e);return r&&(t.version=r),t}},{test:[/electron/i],describe:function(e){var t={name:"Electron"},r=i.default.getFirstMatch(/(?:electron)\/(\d+(\.?_?\d+)+)/i,e);return r&&(t.version=r),t}},{test:[/MiuiBrowser/i],describe:function(e){var t={name:"Miui"},r=i.default.getFirstMatch(/(?:MiuiBrowser)[\s/](\d+(\.?_?\d+)+)/i,e);return r&&(t.version=r),t}},{test:[/chromium/i],describe:function(e){var t={name:"Chromium"},r=i.default.getFirstMatch(/(?:chromium)[\s/](\d+(\.?_?\d+)+)/i,e)||i.default.getFirstMatch(s,e);return r&&(t.version=r),t}},{test:[/chrome|crios|crmo/i],describe:function(e){var t={name:"Chrome"},r=i.default.getFirstMatch(/(?:chrome|crios|crmo)\/(\d+(\.?_?\d+)+)/i,e);return r&&(t.version=r),t}},{test:[/GSA/i],describe:function(e){var t={name:"Google Search"},r=i.default.getFirstMatch(/(?:GSA)\/(\d+(\.?_?\d+)+)/i,e);return r&&(t.version=r),t}},{test:function(e){var t=!e.test(/like android/i),r=e.test(/android/i);return t&&r},describe:function(e){var t={name:"Android Browser"},r=i.default.getFirstMatch(s,e);return r&&(t.version=r),t}},{test:[/playstation 4/i],describe:function(e){var t={name:"PlayStation 4"},r=i.default.getFirstMatch(s,e);return r&&(t.version=r),t}},{test:[/safari|applewebkit/i],describe:function(e){var t={name:"Safari"},r=i.default.getFirstMatch(s,e);return r&&(t.version=r),t}},{test:[/.*/i],describe:function(e){var t=-1!==e.search("\\(")?/^(.*)\/(.*)[ \t]\((.*)/:/^(.*)\/(.*) /;return{name:i.default.getFirstMatch(t,e),version:i.default.getSecondMatch(t,e)}}}];t.default=a,e.exports=t.default},93:function(e,t,r){"use strict";t.__esModule=!0,t.default=void 0;var n,i=(n=r(17))&&n.__esModule?n:{default:n},s=r(18);var a=[{test:[/Roku\/DVP/],describe:function(e){var t=i.default.getFirstMatch(/Roku\/DVP-(\d+\.\d+)/i,e);return{name:s.OS_MAP.Roku,version:t}}},{test:[/windows phone/i],describe:function(e){var t=i.default.getFirstMatch(/windows phone (?:os)?\s?(\d+(\.\d+)*)/i,e);return{name:s.OS_MAP.WindowsPhone,version:t}}},{test:[/windows /i],describe:function(e){var t=i.default.getFirstMatch(/Windows ((NT|XP)( \d\d?.\d)?)/i,e),r=i.default.getWindowsVersionName(t);return{name:s.OS_MAP.Windows,version:t,versionName:r}}},{test:[/Macintosh(.*?) FxiOS(.*?)\//],describe:function(e){var t={name:s.OS_MAP.iOS},r=i.default.getSecondMatch(/(Version\/)(\d[\d.]+)/,e);return r&&(t.version=r),t}},{test:[/macintosh/i],describe:function(e){var t=i.default.getFirstMatch(/mac os x (\d+(\.?_?\d+)+)/i,e).replace(/[_\s]/g,"."),r=i.default.getMacOSVersionName(t),n={name:s.OS_MAP.MacOS,version:t};return r&&(n.versionName=r),n}},{test:[/(ipod|iphone|ipad)/i],describe:function(e){var t=i.default.getFirstMatch(/os (\d+([_\s]\d+)*) like mac os x/i,e).replace(/[_\s]/g,".");return{name:s.OS_MAP.iOS,version:t}}},{test:function(e){var t=!e.test(/like android/i),r=e.test(/android/i);return t&&r},describe:function(e){var t=i.default.getFirstMatch(/android[\s/-](\d+(\.\d+)*)/i,e),r=i.default.getAndroidVersionName(t),n={name:s.OS_MAP.Android,version:t};return r&&(n.versionName=r),n}},{test:[/(web|hpw)[o0]s/i],describe:function(e){var t=i.default.getFirstMatch(/(?:web|hpw)[o0]s\/(\d+(\.\d+)*)/i,e),r={name:s.OS_MAP.WebOS};return t&&t.length&&(r.version=t),r}},{test:[/blackberry|\bbb\d+/i,/rim\stablet/i],describe:function(e){var t=i.default.getFirstMatch(/rim\stablet\sos\s(\d+(\.\d+)*)/i,e)||i.default.getFirstMatch(/blackberry\d+\/(\d+([_\s]\d+)*)/i,e)||i.default.getFirstMatch(/\bbb(\d+)/i,e);return{name:s.OS_MAP.BlackBerry,version:t}}},{test:[/bada/i],describe:function(e){var t=i.default.getFirstMatch(/bada\/(\d+(\.\d+)*)/i,e);return{name:s.OS_MAP.Bada,version:t}}},{test:[/tizen/i],describe:function(e){var t=i.default.getFirstMatch(/tizen[/\s](\d+(\.\d+)*)/i,e);return{name:s.OS_MAP.Tizen,version:t}}},{test:[/linux/i],describe:function(){return{name:s.OS_MAP.Linux}}},{test:[/CrOS/],describe:function(){return{name:s.OS_MAP.ChromeOS}}},{test:[/PlayStation 4/],describe:function(e){var t=i.default.getFirstMatch(/PlayStation 4[/\s](\d+(\.\d+)*)/i,e);return{name:s.OS_MAP.PlayStation4,version:t}}}];t.default=a,e.exports=t.default},94:function(e,t,r){"use strict";t.__esModule=!0,t.default=void 0;var n,i=(n=r(17))&&n.__esModule?n:{default:n},s=r(18);var a=[{test:[/googlebot/i],describe:function(){return{type:"bot",vendor:"Google"}}},{test:[/huawei/i],describe:function(e){var t=i.default.getFirstMatch(/(can-l01)/i,e)&&"Nova",r={type:s.PLATFORMS_MAP.mobile,vendor:"Huawei"};return t&&(r.model=t),r}},{test:[/nexus\s*(?:7|8|9|10).*/i],describe:function(){return{type:s.PLATFORMS_MAP.tablet,vendor:"Nexus"}}},{test:[/ipad/i],describe:function(){return{type:s.PLATFORMS_MAP.tablet,vendor:"Apple",model:"iPad"}}},{test:[/Macintosh(.*?) FxiOS(.*?)\//],describe:function(){return{type:s.PLATFORMS_MAP.tablet,vendor:"Apple",model:"iPad"}}},{test:[/kftt build/i],describe:function(){return{type:s.PLATFORMS_MAP.tablet,vendor:"Amazon",model:"Kindle Fire HD 7"}}},{test:[/silk/i],describe:function(){return{type:s.PLATFORMS_MAP.tablet,vendor:"Amazon"}}},{test:[/tablet(?! pc)/i],describe:function(){return{type:s.PLATFORMS_MAP.tablet}}},{test:function(e){var t=e.test(/ipod|iphone/i),r=e.test(/like (ipod|iphone)/i);return t&&!r},describe:function(e){var t=i.default.getFirstMatch(/(ipod|iphone)/i,e);return{type:s.PLATFORMS_MAP.mobile,vendor:"Apple",model:t}}},{test:[/nexus\s*[0-6].*/i,/galaxy nexus/i],describe:function(){return{type:s.PLATFORMS_MAP.mobile,vendor:"Nexus"}}},{test:[/[^-]mobi/i],describe:function(){return{type:s.PLATFORMS_MAP.mobile}}},{test:function(e){return"blackberry"===e.getBrowserName(!0)},describe:function(){return{type:s.PLATFORMS_MAP.mobile,vendor:"BlackBerry"}}},{test:function(e){return"bada"===e.getBrowserName(!0)},describe:function(){return{type:s.PLATFORMS_MAP.mobile}}},{test:function(e){return"windows phone"===e.getBrowserName()},describe:function(){return{type:s.PLATFORMS_MAP.mobile,vendor:"Microsoft"}}},{test:function(e){var t=Number(String(e.getOSVersion()).split(".")[0]);return"android"===e.getOSName(!0)&&t>=3},describe:function(){return{type:s.PLATFORMS_MAP.tablet}}},{test:function(e){return"android"===e.getOSName(!0)},describe:function(){return{type:s.PLATFORMS_MAP.mobile}}},{test:function(e){return"macos"===e.getOSName(!0)},describe:function(){return{type:s.PLATFORMS_MAP.desktop,vendor:"Apple"}}},{test:function(e){return"windows"===e.getOSName(!0)},describe:function(){return{type:s.PLATFORMS_MAP.desktop}}},{test:function(e){return"linux"===e.getOSName(!0)},describe:function(){return{type:s.PLATFORMS_MAP.desktop}}},{test:function(e){return"playstation 4"===e.getOSName(!0)},describe:function(){return{type:s.PLATFORMS_MAP.tv}}},{test:function(e){return"roku"===e.getOSName(!0)},describe:function(){return{type:s.PLATFORMS_MAP.tv}}}];t.default=a,e.exports=t.default},95:function(e,t,r){"use strict";t.__esModule=!0,t.default=void 0;var n,i=(n=r(17))&&n.__esModule?n:{default:n},s=r(18);var a=[{test:function(e){return"microsoft edge"===e.getBrowserName(!0)},describe:function(e){if(/\sedg\//i.test(e))return{name:s.ENGINE_MAP.Blink};var t=i.default.getFirstMatch(/edge\/(\d+(\.?_?\d+)+)/i,e);return{name:s.ENGINE_MAP.EdgeHTML,version:t}}},{test:[/trident/i],describe:function(e){var t={name:s.ENGINE_MAP.Trident},r=i.default.getFirstMatch(/trident\/(\d+(\.?_?\d+)+)/i,e);return r&&(t.version=r),t}},{test:function(e){return e.test(/presto/i)},describe:function(e){var t={name:s.ENGINE_MAP.Presto},r=i.default.getFirstMatch(/presto\/(\d+(\.?_?\d+)+)/i,e);return r&&(t.version=r),t}},{test:function(e){var t=e.test(/gecko/i),r=e.test(/like gecko/i);return t&&!r},describe:function(e){var t={name:s.ENGINE_MAP.Gecko},r=i.default.getFirstMatch(/gecko\/(\d+(\.?_?\d+)+)/i,e);return r&&(t.version=r),t}},{test:[/(apple)?webkit\/537\.36/i],describe:function(){return{name:s.ENGINE_MAP.Blink}}},{test:[/(apple)?webkit/i],describe:function(e){var t={name:s.ENGINE_MAP.WebKit},r=i.default.getFirstMatch(/webkit\/(\d+(\.?_?\d+)+)/i,e);return r&&(t.version=r),t}}];t.default=a,e.exports=t.default}})}));
-},{}],14:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 (function (process){(function (){
 /* eslint-env browser */
 
@@ -3785,7 +3732,7 @@ formatters.j = function (v) {
 };
 
 }).call(this)}).call(this,require('_process'))
-},{"./common":15,"_process":5}],15:[function(require,module,exports){
+},{"./common":14,"_process":5}],14:[function(require,module,exports){
 
 /**
  * This is the common logic for both the Node.js and web browser
@@ -4061,7 +4008,7 @@ function setup(env) {
 
 module.exports = setup;
 
-},{"ms":65}],16:[function(require,module,exports){
+},{"ms":64}],15:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = (() => {
@@ -4076,7 +4023,7 @@ exports.default = (() => {
     }
 })();
 
-},{}],17:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.installTimerFunctions = exports.transports = exports.Transport = exports.protocol = exports.Socket = void 0;
@@ -4090,7 +4037,7 @@ Object.defineProperty(exports, "transports", { enumerable: true, get: function (
 var util_js_1 = require("./util.js");
 Object.defineProperty(exports, "installTimerFunctions", { enumerable: true, get: function () { return util_js_1.installTimerFunctions; } });
 
-},{"./socket.js":18,"./transport.js":19,"./transports/index.js":20,"./util.js":26}],18:[function(require,module,exports){
+},{"./socket.js":17,"./transport.js":18,"./transports/index.js":19,"./util.js":25}],17:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -4682,7 +4629,7 @@ function clone(obj) {
     return o;
 }
 
-},{"./transports/index.js":20,"./util.js":26,"@socket.io/component-emitter":10,"debug":14,"engine.io-parser":30,"parseqs":66,"parseuri":67}],19:[function(require,module,exports){
+},{"./transports/index.js":19,"./util.js":25,"@socket.io/component-emitter":9,"debug":13,"engine.io-parser":29,"parseqs":65,"parseuri":66}],18:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -4805,7 +4752,7 @@ class Transport extends component_emitter_1.Emitter {
 }
 exports.Transport = Transport;
 
-},{"./util.js":26,"@socket.io/component-emitter":10,"debug":14,"engine.io-parser":30}],20:[function(require,module,exports){
+},{"./util.js":25,"@socket.io/component-emitter":9,"debug":13,"engine.io-parser":29}],19:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.transports = void 0;
@@ -4816,7 +4763,7 @@ exports.transports = {
     polling: polling_xhr_js_1.XHR
 };
 
-},{"./polling-xhr.js":21,"./websocket.js":24}],21:[function(require,module,exports){
+},{"./polling-xhr.js":20,"./websocket.js":23}],20:[function(require,module,exports){
 "use strict";
 /* global attachEvent */
 var __importDefault = (this && this.__importDefault) || function (mod) {
@@ -5096,7 +5043,7 @@ function unloadHandler() {
     }
 }
 
-},{"../globalThis.js":16,"../util.js":26,"./polling.js":22,"./xmlhttprequest.js":25,"@socket.io/component-emitter":10,"debug":14}],22:[function(require,module,exports){
+},{"../globalThis.js":15,"../util.js":25,"./polling.js":21,"./xmlhttprequest.js":24,"@socket.io/component-emitter":9,"debug":13}],21:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -5282,7 +5229,7 @@ class Polling extends transport_js_1.Transport {
 }
 exports.Polling = Polling;
 
-},{"../transport.js":19,"debug":14,"engine.io-parser":30,"parseqs":66,"yeast":80}],23:[function(require,module,exports){
+},{"../transport.js":18,"debug":13,"engine.io-parser":29,"parseqs":65,"yeast":79}],22:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -5303,7 +5250,7 @@ exports.WebSocket = globalThis_js_1.default.WebSocket || globalThis_js_1.default
 exports.usingBrowserWebSocket = true;
 exports.defaultBinaryType = "arraybuffer";
 
-},{"../globalThis.js":16}],24:[function(require,module,exports){
+},{"../globalThis.js":15}],23:[function(require,module,exports){
 (function (Buffer){(function (){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
@@ -5501,7 +5448,7 @@ class WS extends transport_js_1.Transport {
 exports.WS = WS;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../transport.js":19,"../util.js":26,"./websocket-constructor.js":23,"buffer":2,"debug":14,"engine.io-parser":30,"parseqs":66,"yeast":80}],25:[function(require,module,exports){
+},{"../transport.js":18,"../util.js":25,"./websocket-constructor.js":22,"buffer":2,"debug":13,"engine.io-parser":29,"parseqs":65,"yeast":79}],24:[function(require,module,exports){
 "use strict";
 // browser shim for xmlhttprequest module
 var __importDefault = (this && this.__importDefault) || function (mod) {
@@ -5528,7 +5475,7 @@ function default_1(opts) {
 }
 exports.default = default_1;
 
-},{"../globalThis.js":16,"has-cors":32}],26:[function(require,module,exports){
+},{"../globalThis.js":15,"has-cors":31}],25:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -5560,7 +5507,7 @@ function installTimerFunctions(obj, opts) {
 }
 exports.installTimerFunctions = installTimerFunctions;
 
-},{"./globalThis.js":16}],27:[function(require,module,exports){
+},{"./globalThis.js":15}],26:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ERROR_PACKET = exports.PACKET_TYPES_REVERSE = exports.PACKET_TYPES = void 0;
@@ -5581,7 +5528,7 @@ Object.keys(PACKET_TYPES).forEach(key => {
 const ERROR_PACKET = { type: "error", data: "parser error" };
 exports.ERROR_PACKET = ERROR_PACKET;
 
-},{}],28:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const commons_js_1 = require("./commons.js");
@@ -5634,7 +5581,7 @@ const mapBinary = (data, binaryType) => {
 };
 exports.default = decodePacket;
 
-},{"./commons.js":27,"@socket.io/base64-arraybuffer":9}],29:[function(require,module,exports){
+},{"./commons.js":26,"@socket.io/base64-arraybuffer":8}],28:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const commons_js_1 = require("./commons.js");
@@ -5679,7 +5626,7 @@ const encodeBlobAsBase64 = (data, callback) => {
 };
 exports.default = encodePacket;
 
-},{"./commons.js":27}],30:[function(require,module,exports){
+},{"./commons.js":26}],29:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.decodePayload = exports.decodePacket = exports.encodePayload = exports.encodePacket = exports.protocol = void 0;
@@ -5719,7 +5666,7 @@ const decodePayload = (encodedPayload, binaryType) => {
 exports.decodePayload = decodePayload;
 exports.protocol = 4;
 
-},{"./decodePacket.js":28,"./encodePacket.js":29}],31:[function(require,module,exports){
+},{"./decodePacket.js":27,"./encodePacket.js":28}],30:[function(require,module,exports){
 const debug = require('debug')('h264-profile-level-id');
 
 /* eslint-disable no-console */
@@ -6174,7 +6121,7 @@ function isLevelAsymmetryAllowed(params = {})
 	);
 }
 
-},{"debug":14}],32:[function(require,module,exports){
+},{"debug":13}],31:[function(require,module,exports){
 
 /**
  * Module exports.
@@ -6193,7 +6140,7 @@ try {
   module.exports = false;
 }
 
-},{}],33:[function(require,module,exports){
+},{}],32:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Consumer = void 0;
@@ -6388,7 +6335,7 @@ class Consumer extends EnhancedEventEmitter_1.EnhancedEventEmitter {
 }
 exports.Consumer = Consumer;
 
-},{"./EnhancedEventEmitter":37,"./Logger":38,"./errors":43}],34:[function(require,module,exports){
+},{"./EnhancedEventEmitter":36,"./Logger":37,"./errors":42}],33:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DataConsumer = void 0;
@@ -6556,7 +6503,7 @@ class DataConsumer extends EnhancedEventEmitter_1.EnhancedEventEmitter {
 }
 exports.DataConsumer = DataConsumer;
 
-},{"./EnhancedEventEmitter":37,"./Logger":38}],35:[function(require,module,exports){
+},{"./EnhancedEventEmitter":36,"./Logger":37}],34:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DataProducer = void 0;
@@ -6740,7 +6687,7 @@ class DataProducer extends EnhancedEventEmitter_1.EnhancedEventEmitter {
 }
 exports.DataProducer = DataProducer;
 
-},{"./EnhancedEventEmitter":37,"./Logger":38,"./errors":43}],36:[function(require,module,exports){
+},{"./EnhancedEventEmitter":36,"./Logger":37,"./errors":42}],35:[function(require,module,exports){
 "use strict";
 /* global RTCRtpTransceiver */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
@@ -7136,7 +7083,7 @@ class Device {
 }
 exports.Device = Device;
 
-},{"./EnhancedEventEmitter":37,"./Logger":38,"./Transport":42,"./errors":43,"./handlers/Chrome55":44,"./handlers/Chrome67":45,"./handlers/Chrome70":46,"./handlers/Chrome74":47,"./handlers/Edge11":48,"./handlers/Firefox60":49,"./handlers/ReactNative":51,"./handlers/Safari11":52,"./handlers/Safari12":53,"./ortc":61,"./utils":64,"bowser":13}],37:[function(require,module,exports){
+},{"./EnhancedEventEmitter":36,"./Logger":37,"./Transport":41,"./errors":42,"./handlers/Chrome55":43,"./handlers/Chrome67":44,"./handlers/Chrome70":45,"./handlers/Chrome74":46,"./handlers/Edge11":47,"./handlers/Firefox60":48,"./handlers/ReactNative":50,"./handlers/Safari11":51,"./handlers/Safari12":52,"./ortc":60,"./utils":63,"bowser":12}],36:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.EnhancedEventEmitter = void 0;
@@ -7172,7 +7119,7 @@ class EnhancedEventEmitter extends events_1.EventEmitter {
 }
 exports.EnhancedEventEmitter = EnhancedEventEmitter;
 
-},{"./Logger":38,"events":3}],38:[function(require,module,exports){
+},{"./Logger":37,"events":3}],37:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -7211,7 +7158,7 @@ class Logger {
 }
 exports.Logger = Logger;
 
-},{"debug":14}],39:[function(require,module,exports){
+},{"debug":13}],38:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Producer = void 0;
@@ -7498,7 +7445,7 @@ class Producer extends EnhancedEventEmitter_1.EnhancedEventEmitter {
 }
 exports.Producer = Producer;
 
-},{"./EnhancedEventEmitter":37,"./Logger":38,"./errors":43}],40:[function(require,module,exports){
+},{"./EnhancedEventEmitter":36,"./Logger":37,"./errors":42}],39:[function(require,module,exports){
 "use strict";
 /**
  * The RTP capabilities define what mediasoup or an endpoint can receive at
@@ -7506,11 +7453,11 @@ exports.Producer = Producer;
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 
-},{}],41:[function(require,module,exports){
+},{}],40:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 
-},{}],42:[function(require,module,exports){
+},{}],41:[function(require,module,exports){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -8128,7 +8075,7 @@ class Transport extends EnhancedEventEmitter_1.EnhancedEventEmitter {
 }
 exports.Transport = Transport;
 
-},{"./Consumer":33,"./DataConsumer":34,"./DataProducer":35,"./EnhancedEventEmitter":37,"./Logger":38,"./Producer":39,"./errors":43,"./ortc":61,"./utils":64,"awaitqueue":11}],43:[function(require,module,exports){
+},{"./Consumer":32,"./DataConsumer":33,"./DataProducer":34,"./EnhancedEventEmitter":36,"./Logger":37,"./Producer":38,"./errors":42,"./ortc":60,"./utils":63,"awaitqueue":10}],42:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.InvalidStateError = exports.UnsupportedError = void 0;
@@ -8169,7 +8116,7 @@ class InvalidStateError extends Error {
 }
 exports.InvalidStateError = InvalidStateError;
 
-},{}],44:[function(require,module,exports){
+},{}],43:[function(require,module,exports){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -8684,7 +8631,7 @@ class Chrome55 extends HandlerInterface_1.HandlerInterface {
 }
 exports.Chrome55 = Chrome55;
 
-},{"../Logger":38,"../errors":43,"../ortc":61,"../utils":64,"./HandlerInterface":50,"./sdp/RemoteSdp":56,"./sdp/commonUtils":57,"./sdp/planBUtils":58,"sdp-transform":69}],45:[function(require,module,exports){
+},{"../Logger":37,"../errors":42,"../ortc":60,"../utils":63,"./HandlerInterface":49,"./sdp/RemoteSdp":55,"./sdp/commonUtils":56,"./sdp/planBUtils":57,"sdp-transform":68}],44:[function(require,module,exports){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -9246,7 +9193,7 @@ class Chrome67 extends HandlerInterface_1.HandlerInterface {
 }
 exports.Chrome67 = Chrome67;
 
-},{"../Logger":38,"../ortc":61,"../utils":64,"./HandlerInterface":50,"./sdp/RemoteSdp":56,"./sdp/commonUtils":57,"./sdp/planBUtils":58,"sdp-transform":69}],46:[function(require,module,exports){
+},{"../Logger":37,"../ortc":60,"../utils":63,"./HandlerInterface":49,"./sdp/RemoteSdp":55,"./sdp/commonUtils":56,"./sdp/planBUtils":57,"sdp-transform":68}],45:[function(require,module,exports){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -9815,7 +9762,7 @@ class Chrome70 extends HandlerInterface_1.HandlerInterface {
 }
 exports.Chrome70 = Chrome70;
 
-},{"../Logger":38,"../ortc":61,"../scalabilityModes":62,"../utils":64,"./HandlerInterface":50,"./sdp/RemoteSdp":56,"./sdp/commonUtils":57,"./sdp/unifiedPlanUtils":59,"sdp-transform":69}],47:[function(require,module,exports){
+},{"../Logger":37,"../ortc":60,"../scalabilityModes":61,"../utils":63,"./HandlerInterface":49,"./sdp/RemoteSdp":55,"./sdp/commonUtils":56,"./sdp/unifiedPlanUtils":58,"sdp-transform":68}],46:[function(require,module,exports){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -10394,7 +10341,7 @@ class Chrome74 extends HandlerInterface_1.HandlerInterface {
 }
 exports.Chrome74 = Chrome74;
 
-},{"../Logger":38,"../ortc":61,"../scalabilityModes":62,"../utils":64,"./HandlerInterface":50,"./sdp/RemoteSdp":56,"./sdp/commonUtils":57,"./sdp/unifiedPlanUtils":59,"sdp-transform":69}],48:[function(require,module,exports){
+},{"../Logger":37,"../ortc":60,"../scalabilityModes":61,"../utils":63,"./HandlerInterface":49,"./sdp/RemoteSdp":55,"./sdp/commonUtils":56,"./sdp/unifiedPlanUtils":58,"sdp-transform":68}],47:[function(require,module,exports){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -10811,7 +10758,7 @@ class Edge11 extends HandlerInterface_1.HandlerInterface {
 }
 exports.Edge11 = Edge11;
 
-},{"../Logger":38,"../errors":43,"../ortc":61,"../utils":64,"./HandlerInterface":50,"./ortc/edgeUtils":54}],49:[function(require,module,exports){
+},{"../Logger":37,"../errors":42,"../ortc":60,"../utils":63,"./HandlerInterface":49,"./ortc/edgeUtils":53}],48:[function(require,module,exports){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -11390,7 +11337,7 @@ class Firefox60 extends HandlerInterface_1.HandlerInterface {
 }
 exports.Firefox60 = Firefox60;
 
-},{"../Logger":38,"../errors":43,"../ortc":61,"../utils":64,"./HandlerInterface":50,"./sdp/RemoteSdp":56,"./sdp/commonUtils":57,"./sdp/unifiedPlanUtils":59,"sdp-transform":69}],50:[function(require,module,exports){
+},{"../Logger":37,"../errors":42,"../ortc":60,"../utils":63,"./HandlerInterface":49,"./sdp/RemoteSdp":55,"./sdp/commonUtils":56,"./sdp/unifiedPlanUtils":58,"sdp-transform":68}],49:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.HandlerInterface = void 0;
@@ -11410,7 +11357,7 @@ class HandlerInterface extends EnhancedEventEmitter_1.EnhancedEventEmitter {
 }
 exports.HandlerInterface = HandlerInterface;
 
-},{"../EnhancedEventEmitter":37}],51:[function(require,module,exports){
+},{"../EnhancedEventEmitter":36}],50:[function(require,module,exports){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -11939,7 +11886,7 @@ class ReactNative extends HandlerInterface_1.HandlerInterface {
 }
 exports.ReactNative = ReactNative;
 
-},{"../Logger":38,"../errors":43,"../ortc":61,"../utils":64,"./HandlerInterface":50,"./sdp/RemoteSdp":56,"./sdp/commonUtils":57,"./sdp/planBUtils":58,"sdp-transform":69}],52:[function(require,module,exports){
+},{"../Logger":37,"../errors":42,"../ortc":60,"../utils":63,"./HandlerInterface":49,"./sdp/RemoteSdp":55,"./sdp/commonUtils":56,"./sdp/planBUtils":57,"sdp-transform":68}],51:[function(require,module,exports){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -12493,7 +12440,7 @@ class Safari11 extends HandlerInterface_1.HandlerInterface {
 }
 exports.Safari11 = Safari11;
 
-},{"../Logger":38,"../ortc":61,"../utils":64,"./HandlerInterface":50,"./sdp/RemoteSdp":56,"./sdp/commonUtils":57,"./sdp/planBUtils":58,"sdp-transform":69}],53:[function(require,module,exports){
+},{"../Logger":37,"../ortc":60,"../utils":63,"./HandlerInterface":49,"./sdp/RemoteSdp":55,"./sdp/commonUtils":56,"./sdp/planBUtils":57,"sdp-transform":68}],52:[function(require,module,exports){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -13040,7 +12987,7 @@ class Safari12 extends HandlerInterface_1.HandlerInterface {
 }
 exports.Safari12 = Safari12;
 
-},{"../Logger":38,"../ortc":61,"../utils":64,"./HandlerInterface":50,"./sdp/RemoteSdp":56,"./sdp/commonUtils":57,"./sdp/unifiedPlanUtils":59,"sdp-transform":69}],54:[function(require,module,exports){
+},{"../Logger":37,"../ortc":60,"../utils":63,"./HandlerInterface":49,"./sdp/RemoteSdp":55,"./sdp/commonUtils":56,"./sdp/unifiedPlanUtils":58,"sdp-transform":68}],53:[function(require,module,exports){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -13120,7 +13067,7 @@ function mangleRtpParameters(rtpParameters) {
 }
 exports.mangleRtpParameters = mangleRtpParameters;
 
-},{"../../utils":64}],55:[function(require,module,exports){
+},{"../../utils":63}],54:[function(require,module,exports){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -13650,7 +13597,7 @@ function getCodecName(codec) {
     return mimeTypeMatch[2];
 }
 
-},{"../../utils":64}],56:[function(require,module,exports){
+},{"../../utils":63}],55:[function(require,module,exports){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -13927,7 +13874,7 @@ class RemoteSdp {
 }
 exports.RemoteSdp = RemoteSdp;
 
-},{"../../Logger":38,"./MediaSection":55,"sdp-transform":69}],57:[function(require,module,exports){
+},{"../../Logger":37,"./MediaSection":54,"sdp-transform":68}],56:[function(require,module,exports){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -14119,7 +14066,7 @@ function applyCodecParameters({ offerRtpParameters, answerMediaObject }) {
 }
 exports.applyCodecParameters = applyCodecParameters;
 
-},{"sdp-transform":69}],58:[function(require,module,exports){
+},{"sdp-transform":68}],57:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.addLegacySimulcast = exports.getRtpEncodings = void 0;
@@ -14265,7 +14212,7 @@ function addLegacySimulcast({ offerMediaObject, track, numStreams }) {
 }
 exports.addLegacySimulcast = addLegacySimulcast;
 
-},{}],59:[function(require,module,exports){
+},{}],58:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.addLegacySimulcast = exports.getRtpEncodings = void 0;
@@ -14390,7 +14337,7 @@ function addLegacySimulcast({ offerMediaObject, numStreams }) {
 }
 exports.addLegacySimulcast = addLegacySimulcast;
 
-},{}],60:[function(require,module,exports){
+},{}],59:[function(require,module,exports){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -14433,7 +14380,7 @@ exports.version = '3.6.50';
 var scalabilityModes_1 = require("./scalabilityModes");
 Object.defineProperty(exports, "parseScalabilityMode", { enumerable: true, get: function () { return scalabilityModes_1.parse; } });
 
-},{"./Device":36,"./scalabilityModes":62,"./types":63,"debug":14}],61:[function(require,module,exports){
+},{"./Device":35,"./scalabilityModes":61,"./types":62,"debug":13}],60:[function(require,module,exports){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -15276,7 +15223,7 @@ function reduceRtcpFeedback(codecA, codecB) {
     return reducedRtcpFeedback;
 }
 
-},{"./utils":64,"h264-profile-level-id":31}],62:[function(require,module,exports){
+},{"./utils":63,"h264-profile-level-id":30}],61:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.parse = void 0;
@@ -15298,7 +15245,7 @@ function parse(scalabilityMode) {
 }
 exports.parse = parse;
 
-},{}],63:[function(require,module,exports){
+},{}],62:[function(require,module,exports){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -15322,7 +15269,7 @@ __exportStar(require("./SctpParameters"), exports);
 __exportStar(require("./handlers/HandlerInterface"), exports);
 __exportStar(require("./errors"), exports);
 
-},{"./Consumer":33,"./DataConsumer":34,"./DataProducer":35,"./Device":36,"./Producer":39,"./RtpParameters":40,"./SctpParameters":41,"./Transport":42,"./errors":43,"./handlers/HandlerInterface":50}],64:[function(require,module,exports){
+},{"./Consumer":32,"./DataConsumer":33,"./DataProducer":34,"./Device":35,"./Producer":38,"./RtpParameters":39,"./SctpParameters":40,"./Transport":41,"./errors":42,"./handlers/HandlerInterface":49}],63:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.generateRandomNumber = exports.clone = void 0;
@@ -15343,7 +15290,7 @@ function generateRandomNumber() {
 }
 exports.generateRandomNumber = generateRandomNumber;
 
-},{}],65:[function(require,module,exports){
+},{}],64:[function(require,module,exports){
 /**
  * Helpers.
  */
@@ -15507,7 +15454,7 @@ function plural(ms, msAbs, n, name) {
   return Math.round(ms / n) + ' ' + name + (isPlural ? 's' : '');
 }
 
-},{}],66:[function(require,module,exports){
+},{}],65:[function(require,module,exports){
 /**
  * Compiles a querystring
  * Returns string representation of the object
@@ -15546,7 +15493,7 @@ exports.decode = function(qs){
   return qry;
 };
 
-},{}],67:[function(require,module,exports){
+},{}],66:[function(require,module,exports){
 /**
  * Parses an URI
  *
@@ -15616,7 +15563,7 @@ function queryKey(uri, query) {
     return data;
 }
 
-},{}],68:[function(require,module,exports){
+},{}],67:[function(require,module,exports){
 var grammar = module.exports = {
   v: [{
     name: 'version',
@@ -16112,7 +16059,7 @@ Object.keys(grammar).forEach(function (key) {
   });
 });
 
-},{}],69:[function(require,module,exports){
+},{}],68:[function(require,module,exports){
 var parser = require('./parser');
 var writer = require('./writer');
 
@@ -16125,7 +16072,7 @@ exports.parseRemoteCandidates = parser.parseRemoteCandidates;
 exports.parseImageAttributes = parser.parseImageAttributes;
 exports.parseSimulcastStreamList = parser.parseSimulcastStreamList;
 
-},{"./parser":70,"./writer":71}],70:[function(require,module,exports){
+},{"./parser":69,"./writer":70}],69:[function(require,module,exports){
 var toIntIfInt = function (v) {
   return String(Number(v)) === v ? Number(v) : v;
 };
@@ -16251,7 +16198,7 @@ exports.parseSimulcastStreamList = function (str) {
   });
 };
 
-},{"./grammar":68}],71:[function(require,module,exports){
+},{"./grammar":67}],70:[function(require,module,exports){
 var grammar = require('./grammar');
 
 // customized util.format - discards excess arguments and can void middle ones
@@ -16367,7 +16314,7 @@ module.exports = function (session, opts) {
   return sdp.join('\r\n') + '\r\n';
 };
 
-},{"./grammar":68}],72:[function(require,module,exports){
+},{"./grammar":67}],71:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -16438,7 +16385,7 @@ Object.defineProperty(exports, "protocol", { enumerable: true, get: function () 
 
 module.exports = lookup;
 
-},{"./manager.js":73,"./socket.js":75,"./url.js":76,"debug":14,"socket.io-parser":78}],73:[function(require,module,exports){
+},{"./manager.js":72,"./socket.js":74,"./url.js":75,"debug":13,"socket.io-parser":77}],72:[function(require,module,exports){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -16835,7 +16782,7 @@ class Manager extends component_emitter_1.Emitter {
 }
 exports.Manager = Manager;
 
-},{"./on.js":74,"./socket.js":75,"@socket.io/component-emitter":10,"backo2":12,"debug":14,"engine.io-client":17,"socket.io-parser":78}],74:[function(require,module,exports){
+},{"./on.js":73,"./socket.js":74,"@socket.io/component-emitter":9,"backo2":11,"debug":13,"engine.io-client":16,"socket.io-parser":77}],73:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.on = void 0;
@@ -16847,7 +16794,7 @@ function on(obj, ev, fn) {
 }
 exports.on = on;
 
-},{}],75:[function(require,module,exports){
+},{}],74:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -17357,7 +17304,7 @@ class Socket extends component_emitter_1.Emitter {
 }
 exports.Socket = Socket;
 
-},{"./on.js":74,"@socket.io/component-emitter":10,"debug":14,"socket.io-parser":78}],76:[function(require,module,exports){
+},{"./on.js":73,"@socket.io/component-emitter":9,"debug":13,"socket.io-parser":77}],75:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -17429,7 +17376,7 @@ function url(uri, path = "", loc) {
 }
 exports.url = url;
 
-},{"debug":14,"parseuri":67}],77:[function(require,module,exports){
+},{"debug":13,"parseuri":66}],76:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.reconstructPacket = exports.deconstructPacket = void 0;
@@ -17511,7 +17458,7 @@ function _reconstructPacket(data, buffers) {
     return data;
 }
 
-},{"./is-binary.js":79}],78:[function(require,module,exports){
+},{"./is-binary.js":78}],77:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Decoder = exports.Encoder = exports.PacketType = exports.protocol = void 0;
@@ -17794,7 +17741,7 @@ class BinaryReconstructor {
     }
 }
 
-},{"./binary.js":77,"./is-binary.js":79,"@socket.io/component-emitter":10,"debug":14}],79:[function(require,module,exports){
+},{"./binary.js":76,"./is-binary.js":78,"@socket.io/component-emitter":9,"debug":13}],78:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.hasBinary = exports.isBinary = void 0;
@@ -17851,7 +17798,7 @@ function hasBinary(obj, toJSON) {
 }
 exports.hasBinary = hasBinary;
 
-},{}],80:[function(require,module,exports){
+},{}],79:[function(require,module,exports){
 'use strict';
 
 var alphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_'.split('')
